@@ -12,7 +12,7 @@ We include a list of required packages in `requirements.txt`. We recommend using
 
 #### Installation
 
-No compilation is required.
+Beyond installing the dependencies above, no compilation of is required.
 
 ### Usage
 
