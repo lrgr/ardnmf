@@ -1,0 +1,32 @@
+from os.path import join
+
+# Input files
+SWIMMER_MAT = 'swimmer.mat'
+ARDNMF_MATLAB_ZIP = 'ardnmf.zip'
+
+# Output files
+
+# Rules
+rule download:
+    output:
+        temp(ARDNMF_MATLAB_ZIP)
+    shell:
+        'wget -O {output} https://www.irit.fr/~Cedric.Fevotte/extras/pami13/ardnmf.zip'
+
+rule extract_swimmer_mat:
+    output:
+        SWIMMER_MAT
+    input:
+        ARDNMF_MATLAB_ZIP
+    shell:
+        'unzip -p {input} ardnmf/swimmer.mat > {output}'
+
+rule swimmer_example:
+    output:
+        "swimmer-ardnmf-samples.pdf",
+        "swimmer-ardnmf-fit-and-relevance.pdf",
+        "swimmer-ardnmf-dictionary.pdf"
+    input:
+        SWIMMER_MAT
+    shell:
+        'python swimmer_example.py -i {input} -o swimmer-ardnmf'
