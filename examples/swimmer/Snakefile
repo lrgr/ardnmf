@@ -21,12 +21,22 @@ rule extract_swimmer_mat:
     shell:
         'unzip -p {input} ardnmf/swimmer.mat > {output}'
 
-rule swimmer_example:
+rule swimmer_l1:
     output:
-        "swimmer-ardnmf-samples.pdf",
-        "swimmer-ardnmf-fit-and-relevance.pdf",
-        "swimmer-ardnmf-dictionary.pdf"
+        "swimmer-ardnmf-l1-samples.pdf",
+        "swimmer-ardnmf-l1-fit-and-relevance.pdf",
+        "swimmer-ardnmf-l1-dictionary.pdf"
     input:
         SWIMMER_MAT
     shell:
-        'python swimmer_example.py -i {input} -o swimmer-ardnmf'
+        'python swimmer_example.py -i {input} -o swimmer-ardnmf-l1'
+
+rule swimmer_l2:
+    output:
+        "swimmer-ardnmf-l2-samples.pdf",
+        "swimmer-ardnmf-l2-fit-and-relevance.pdf",
+        "swimmer-ardnmf-l2-dictionary.pdf"
+    input:
+        SWIMMER_MAT
+    shell:
+        'python swimmer_example.py -i {input} -o swimmer-ardnmf-l2'

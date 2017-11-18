@@ -9,6 +9,7 @@ This example also has additional required Python modules, listed in `requirement
 
 To run the full example, first install the dependencies, then use `snakemake`:
 
-    snakemake swimmer_example
+    snakemake swimmer_l1
+    snakemake swimmer_l2
 
 Then view the PDF file output, and compare to Fig. 4 in the Tan & Févotte paper.

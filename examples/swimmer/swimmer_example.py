@@ -55,7 +55,7 @@ W = model.components_
 ## Display fit and relevance parameters
 fig = plt.gcf()
 fig.set_size_inches(15, 5)
-if sum(model.obj_ <= 0) == 0:
+if not np.any(model.obj_ <= 0):
     plt.subplot(1,3,1)
     plt.loglog(model.obj_,'k')
     plt.title('objective function')
