@@ -1,0 +1,36 @@
+from os.path import join
+
+# Directories
+DATA_DIR = 'data'
+
+# Input files
+KASAR_ET_AL_MAF = join(DATA_DIR, 'kasar-et-al-table-s8.xlsx')
+KASAR_ET_AL_MUTATION_COUNTS = join(DATA_DIR, 'kasar-et-al-mutation-counts.tsv')
+
+# Output files
+KASAR_ET_AL_SIGNATURES_JSON = 'kasar-et-al-signatures.json'
+KASAR_ET_AL_SIGNATURES_PDF = 'kasar-et-al-signatures.pdf'
+
+# Rules
+rule download:
+    output:
+        KASAR_ET_AL_MAF
+    shell:
+        'wget -O {output} https://images.nature.com/original/nature-assets/ncomms/2015/151207/ncomms9866/extref/ncomms9866-s8.xlsx'
+
+rule process_maf:
+    output:
+        KASAR_ET_AL_MUTATION_COUNTS
+    input:
+        KASAR_ET_AL_MAF
+    shell:
+        'python parse_kasar_et_al_maf.py -i {input} -o {output} -sr 2'
+
+rule cll_mutation_signatures:
+    output:
+        KASAR_ET_AL_SIGNATURES_PDF,
+        KASAR_ET_AL_SIGNATURES_JSON
+    input:
+        KASAR_ET_AL_MUTATION_COUNTS
+    shell:
+        'python ardnmf_cll_signatures.py -i {input} -o kasar-et-al-signatures -ni 1'

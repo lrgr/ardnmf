@@ -60,34 +60,26 @@ def betadiv(A,B,beta):
 ################################################################################
 # INITIALIZE ARDNMF
 ################################################################################
-def init_ardnmf(V, prior, n_components, init=None, random_state=None, a=1000):
+def init_ardnmf(V, prior, K, init=None, random_state=None):
     """Initialize W,H for ARDNMF randomly and based off mean of components.
     - a: Relevance parameters shape parameter (using ARDNMF default always)
     """
     rng = check_random_state(random_state)
     F, N = V.shape
     mean_V = V.sum() / (F*N) # Data sample mean per component
-    W_ini = (rng.rand(F,n_components) + 1)*(np.sqrt(mean_V/n_components))
-    H_ini = (rng.rand(n_components,N) + 1)*(np.sqrt(mean_V/n_components))
+    W_ini = (rng.rand(F,K) + 1)*(np.sqrt(mean_V/K))
+    H_ini = (rng.rand(K,N) + 1)*(np.sqrt(mean_V/K))
 
-    # Set a and b
-    if PRIOR_TO_L[prior] == 1:
-        b = np.sqrt((a-1.)*(a-2.)*mean_V/n_components)
-    elif PRIOR_TO_L[prior] == 2:
-        b = (np.pi/2.)*(a-1.)*mean_V/n_components
-    else:
-        raise NotImplementedError('Prior "%s" not implemented.' % prior)
-
-    return W_ini, H_ini, a, b
+    return W_ini, H_ini
 
 ################################################################################
 # FIT ARDNMF
 ################################################################################
 # ARDNMF main
-def ardnmf(V, prior, n_components, beta=1, init=None,  max_iter=200, tol=1e-5,
+def ardnmf(V, prior, K, a, b, beta=1, init=None,  max_iter=200, tol=1e-5,
           verbose=logging.INFO, random_state=None):
     # Initialize W and H
-    W, H, a, b = init_ardnmf(V, prior, n_components, init, random_state)
+    W, H = init_ardnmf(V, prior, K, init, random_state)
 
     # Fit
     if prior == EXP_PRIOR:
@@ -117,9 +109,9 @@ def l1_ardnmf(V, beta, tol, max_iter, W, H, a, b, verbose, random_state):
     scale_H = np.sum(H,1)
     inv_lambda = cst/(scale_W+scale_H+b)
 
-    fit = np.array([0] * max_iter, dtype=np.float64)
-    obj = np.array([0] * max_iter, dtype=np.float64)
-    lambdas = np.zeros((K, max_iter))
+    fit = np.array([0] * (max_iter+1), dtype=np.float64)
+    obj = np.array([0] * (max_iter+1), dtype=np.float64)
+    lambdas = np.zeros((K, max_iter+1))
     itera = 0
     rel = np.inf
     lambdas[:,itera] = 1./inv_lambda
@@ -277,8 +269,8 @@ def l2_ardnmf(V, beta, tol, max_iter, W, H, a, b, verbose, random_state):
     scale_H = 0.5 * np.sum(H**2, axis=1)
     inv_lambda = cst/(scale_W+scale_H+b)
 
-    fit = np.array([0] * max_iter, dtype=np.float64)
-    obj = np.array([0] * max_iter, dtype=np.float64)
+    fit = np.array([0] * (max_iter+1), dtype=np.float64)
+    obj = np.array([0] * (max_iter+1), dtype=np.float64)
     lambdas = np.zeros((K, max_iter), dtype=np.float64)
 
     itera = 0
