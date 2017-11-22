@@ -77,8 +77,8 @@ def category_name( five_prime, ref, variant, three_prime):
 
 # Define our list of categories
 categories = [ category_name(five, ref, variant, three)
-                for five in [ list(t) for t in permutations(BASES, args.lf) ]
                 for ref, variant in ['CA', 'CG', 'CT', 'TA', 'TC', 'TG']
+                for five in [ list(t) for t in permutations(BASES, args.lf) ]
                 for three in [ list(t) for t in permutations(BASES, args.rf) ] ]
 
 def add_mutation_category_column(df):
@@ -89,7 +89,7 @@ def add_mutation_category_column(df):
     # Add a mutation category column
     nflank = len(sorted(set(df[FPRIME]))[0])
     df[CAT] = df.apply(lambda m: category_name(m[FPRIME][nflank-args.lf:],
-                                                      m[REF], m[VAR], m[TPRIME][:args.rf]),
+                                               m[REF], m[VAR], m[TPRIME][:args.rf]),
                               axis='columns')
 
     # Filter out mutations with categories not in our lists (usually
@@ -147,7 +147,7 @@ catToIndex = dict(zip(categories, range(L)))
 V = np.zeros((L, 2*N), dtype=np.int)
 for _, r in maf.iterrows():
     i = catToIndex[r[CAT]]
-    if r[NEAREST_MUT] < args.nearest_mutation_threshold:
+    if r[NEAREST_MUT] <= args.nearest_mutation_threshold:
         j = 2*sampleToIndex[r[SAMPLE]]
     else:
         j = 2*sampleToIndex[r[SAMPLE]] + 1

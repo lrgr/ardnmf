@@ -102,7 +102,7 @@ def l1_ardnmf(V, beta, tol, max_iter, W, H, a, b, verbose, random_state):
     V = V + EPS
     V_ap = W.dot(H) + EPS
 
-    cst = F+N+a+1
+    cst = F+N+a+1.
     bound = b/cst
 
     scale_W = np.sum(W,0).T
@@ -133,7 +133,7 @@ def l1_ardnmf(V, beta, tol, max_iter, W, H, a, b, verbose, random_state):
         elif beta == 2: # Euclidean distance
             R = np.tile(inv_lambda[:, None], (1,N))
             P = W.T.dot(V)
-            Q = (W.T.dot(W)).dot(H) + R + np.tile(EPS*scale_W, (1,N)) # Use (V_ap*H.T+R) if K>F
+            Q = (W.T.dot(W)).dot(H) + R + np.tile(EPS*scale_W[:, None], (1,N)) # Use (V_ap*H.T+R) if K>F
             ex = 1.
         elif (beta < 2) and (beta > 1):
             R = np.tile(inv_lambda[:, None], (1,N))
@@ -165,7 +165,7 @@ def l1_ardnmf(V, beta, tol, max_iter, W, H, a, b, verbose, random_state):
         elif beta == 2:
             R = np.tile(inv_lambda.T, (F,1));
             P = V.dot(H.T)
-            Q = W.dot((H.dot(H.T))) + R + np.tile(eps*scale_H.T, (F,1)) # Use (V_ap*H.T+R) if K>N
+            Q = W.dot((H.dot(H.T))) + R + np.tile(EPS*scale_H.T, (F,1)) # Use (V_ap*H.T+R) if K>N
             ex = 1.
         elif (beta < 2) and (beta > 1):
             R = np.tile(inv_lambda.T, (F,1))
@@ -209,7 +209,7 @@ def l1_ardnmf(V, beta, tol, max_iter, W, H, a, b, verbose, random_state):
     lambdas = lambdas[:,:itera+1]
 
     # Add constant to optain true minus log posterior value
-    obj = obj + (K*cst*(1-np.log(cst)));
+    obj = obj + (K*cst*(1.-np.log(cst)));
 
     # Display final values
     logger.info('iter = %4i | obj = %+5.2E | rel = %4.2E (target is %4.2E)'%(itera,obj[itera],rel,tol))
