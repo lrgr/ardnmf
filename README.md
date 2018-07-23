@@ -19,9 +19,20 @@ Beyond installing the dependencies above, no compilation of is required.
 The implementation of ARD-NMF was written to match the [coding guidelines of `scikit-learn`](http://scikit-learn.org/stable/developers/contributing.html#coding-guidelines), and is provided as a Python module. In that way, the main usage is to import the module (e.g. by running the Python shell in this directory):
 
     from ardnmf import ARDNMF
-    model = ARDNMF()
+    model = ARDNMF(a=10)
     H = model.fit_transform(X)
     W = model.components_
+
+### Parameters
+
+The value for beta determines the cost function and controls the assumed statistics of the observation noise. It can be learned from training data by cross-training but this package expects beta to be a fixed value (default value for beta is 1). beta = 0 implies multiplicative Gamma observation noise, beta = 1 implies Poisson noise and beta = 2 implies Gaussian additive noise. For mutation signature extraction, the assumption of Poisson noise is reasonable.
+
+They impose inverse-Gamma priors on each relevance weight where a is the (non-negative) shape hyperparameter and b is the scale hyperparameter. The value for b is computed using the algorithm originally described by Fevotte et al. Estimating the value for a is more difficult so it is required as an input. Fevotte et al. recommend a small value for a.
+
+#### SignatureAnalyzer
+
+The PCAWG version of SignatureAnalyzer uses a=10, b=5 and phi=1 as the default parameters. They use an exponential prior for W (the signatures) and a half normal prior for H (the exposures). The algorithm for computing b assumes that the same prior is used for both W and H.
+
 
 ### Examples
 
