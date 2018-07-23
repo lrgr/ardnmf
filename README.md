@@ -27,7 +27,7 @@ The implementation of ARD-NMF was written to match the [coding guidelines of `sc
 
 The value for beta determines the cost function and controls the assumed statistics of the observation noise. It can be learned from training data by cross-training but this package expects beta to be a fixed value (default value for beta is 1). beta = 0 implies multiplicative Gamma observation noise, beta = 1 implies Poisson noise and beta = 2 implies Gaussian additive noise. For mutation signature extraction, the assumption of Poisson noise is reasonable.
 
-They impose inverse-Gamma priors on each relevance weight where a is the (non-negative) shape hyperparameter and b is the scale hyperparameter. The value for b is computed using the algorithm originally described by Fevotte et al. Estimating the value for a is more difficult so it is required as an input. Fevotte et al. recommend a small value for a.
+They impose inverse-Gamma priors on each relevance weight where a is the (non-negative) shape hyperparameter and b is the scale hyperparameter. The value for b is computed using the algorithm originally described by Fevotte et al. Estimating the value for a is more difficult so it is required as an input. Fevotte et al. recommend a small value for a. 
 
 #### SignatureAnalyzer
 
