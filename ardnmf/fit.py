@@ -21,6 +21,7 @@
 
 # Load required modules
 import sys, os, numpy as np, logging
+from tqdm import tqdm, trange
 from sklearn.utils import check_random_state
 from .constants import *
 from .logger import logger
@@ -118,101 +119,96 @@ def l1_ardnmf(V, beta, tol, max_iter, W, H, a, b, verbose, random_state):
     fit[itera] = betadiv(V,V_ap,beta)
     obj[itera] = fit[itera] + cst*np.sum(np.log(scale_W+scale_H+b))
 
-    logger.setLevel(verbose)
-    logger.info('iter = %4i | obj = %+5.2E | rel = %4.2E (target is %4.2E)' % (itera,obj[itera],rel,tol))
+    with trange(max_iter, desc='ARDNMF run (L1; exp prior)') as t:
+        for itera in t:
+            ## Update H ##
+            if  beta > 2:
+                R = np.tile(inv_lambda[:, None], (1,N))
+                P = W.T.dot(V*V_ap**(beta-2.))
+                Q = W.T.dot(V_ap**(beta-1.)) + R
+                ex = 1./(beta-1.)
+            elif beta == 2: # Euclidean distance
+                R = np.tile(inv_lambda[:, None], (1,N))
+                P = W.T.dot(V)
+                Q = (W.T.dot(W)).dot(H) + R + np.tile(EPS*scale_W[:, None], (1,N)) # Use (V_ap*H.T+R) if K>F
+                ex = 1.
+            elif (beta < 2) and (beta > 1):
+                R = np.tile(inv_lambda[:, None], (1,N))
+                P = W.T.dot(V*V_ap**(beta-2.))
+                Q = W.T.dot(V_ap**(beta-1.)) + R
+                ex = 1.
+            elif beta == 1: # Generalized KL divergence
+                P = W.T.dot(V/V_ap)
+                Q = np.tile((scale_W + inv_lambda)[:, None], (1, N))
+                ex = 1.
+            elif beta < 1:
+                R = np.tile(inv_lambda[:, None], (1,N))
+                P = W.T.dot(V*V_ap**(beta-2.))
+                Q = W.T.dot(V_ap**(beta-1.)) + R
+                ex = 1./(2-beta)
 
-    while rel > tol and itera < max_iter:
-        itera = itera + 1
+            ind = H>0
+            H[ind] = H[ind]*(P[ind]/Q[ind])**ex
+            scale_H = np.sum(H,1)
 
-        ## Update H ##
-        if  beta > 2:
-            R = np.tile(inv_lambda[:, None], (1,N))
-            P = W.T.dot(V*V_ap**(beta-2.))
-            Q = W.T.dot(V_ap**(beta-1.)) + R
-            ex = 1./(beta-1.)
-        elif beta == 2: # Euclidean distance
-            R = np.tile(inv_lambda[:, None], (1,N))
-            P = W.T.dot(V)
-            Q = (W.T.dot(W)).dot(H) + R + np.tile(EPS*scale_W[:, None], (1,N)) # Use (V_ap*H.T+R) if K>F
-            ex = 1.
-        elif (beta < 2) and (beta > 1):
-            R = np.tile(inv_lambda[:, None], (1,N))
-            P = W.T.dot(V*V_ap**(beta-2.))
-            Q = W.T.dot(V_ap**(beta-1.)) + R
-            ex = 1.
-        elif beta == 1: # Generalized KL divergence
-            P = W.T.dot(V/V_ap)
-            Q = np.tile((scale_W + inv_lambda)[:, None], (1, N))
-            ex = 1.
-        elif beta < 1:
-            R = np.tile(inv_lambda[:, None], (1,N))
-            P = W.T.dot(V*V_ap**(beta-2.))
-            Q = W.T.dot(V_ap**(beta-1.)) + R
-            ex = 1./(2-beta)
+            V_ap = W.dot(H) + EPS
 
-        ind = H>0
-        H[ind] = H[ind]*(P[ind]/Q[ind])**ex
-        scale_H = np.sum(H,1)
+            ## Update W ##
+            if  beta > 2:
+                R = np.tile(inv_lambda.T, (F,1))
+                P = (V*V_ap**(beta-2)).dot(H.T)
+                Q = V_ap**(beta-1).dot(H.T) + R
+                ex = 1./(beta-1)
+            elif beta == 2:
+                R = np.tile(inv_lambda.T, (F,1));
+                P = V.dot(H.T)
+                Q = W.dot((H.dot(H.T))) + R + np.tile(EPS*scale_H.T, (F,1)) # Use (V_ap*H.T+R) if K>N
+                ex = 1.
+            elif (beta < 2) and (beta > 1):
+                R = np.tile(inv_lambda.T, (F,1))
+                P = (V*V_ap**(beta-2)).dot(H.T)
+                Q = V_ap**(beta-1).dot(H.T) + R
+                ex = 1.
+            elif beta == 1:
+                P = (V/V_ap).dot(H.T)
+                Q = np.tile(scale_H.T+inv_lambda.T, (F,1))
+                ex = 1.
+            elif beta < 1:
+                R = np.tile(inv_lambda.T, (F,1))
+                P = (V*V_ap**(beta-2))*H.T
+                Q = V_ap**(beta-1)*H.T + R
+                ex = 1./(2-beta)
 
-        V_ap = W.dot(H) + EPS
+            ind = W>0
+            W[ind] = W[ind]*(P[ind]/Q[ind])**ex
+            scale_W = np.sum(W,0).T
 
-        ## Update W ##
-        if  beta > 2:
-            R = np.tile(inv_lambda.T, (F,1))
-            P = (V*V_ap**(beta-2)).dot(H.T)
-            Q = V_ap**(beta-1).dot(H.T) + R
-            ex = 1./(beta-1)
-        elif beta == 2:
-            R = np.tile(inv_lambda.T, (F,1));
-            P = V.dot(H.T)
-            Q = W.dot((H.dot(H.T))) + R + np.tile(EPS*scale_H.T, (F,1)) # Use (V_ap*H.T+R) if K>N
-            ex = 1.
-        elif (beta < 2) and (beta > 1):
-            R = np.tile(inv_lambda.T, (F,1))
-            P = (V*V_ap**(beta-2)).dot(H.T)
-            Q = V_ap**(beta-1).dot(H.T) + R
-            ex = 1.
-        elif beta == 1:
-            P = (V/V_ap).dot(H.T)
-            Q = np.tile(scale_H.T+inv_lambda.T, (F,1))
-            ex = 1.
-        elif beta < 1:
-            R = np.tile(inv_lambda.T, (F,1))
-            P = (V*V_ap**(beta-2))*H.T
-            Q = V_ap**(beta-1)*H.T + R
-            ex = 1./(2-beta)
+            V_ap = W.dot(H) + EPS
 
-        ind = W>0
-        W[ind] = W[ind]*(P[ind]/Q[ind])**ex
-        scale_W = np.sum(W,0).T
+            ## Update lambda ##
+            inv_lambda = cst/(scale_W+scale_H+b)
 
-        V_ap = W.dot(H) + EPS
+            ## Monitor ##
+            fit[itera] = betadiv(V, V_ap, beta)
+            obj[itera] = fit[itera] + cst*np.sum(np.log(scale_W+scale_H+b))
+            lambdas[:,itera] = 1/inv_lambda;
 
-        ## Update lambda ##
-        inv_lambda = cst/(scale_W+scale_H+b)
+            # Compute relative change of the relevance parameters and display
+            rel = np.max(np.abs((lambdas[:,itera]-lambdas[:,itera-1])/lambdas[:,itera]))
+            t.set_postfix(iter=itera, obj=obj[itera], rel=rel, tol=tol)
 
-        ## Monitor ##
-        fit[itera] = betadiv(V, V_ap, beta)
-        obj[itera] = fit[itera] + cst*np.sum(np.log(scale_W+scale_H+b))
-        lambdas[:,itera] = 1/inv_lambda;
-
-        # Compute relative change of the relevance parameters
-        rel = np.max(np.abs((lambdas[:,itera]-lambdas[:,itera-1])/lambdas[:,itera]))
-
-        # Display objective value and relative change every 500 iterations
-        if itera % 500 == 0:
-            logger.info('iter = %4i | obj = %+5.2E | rel = %4.2E (target is %4.2E)' % (itera,obj[itera],rel,tol))
-
-    # Trim variables
-    fit = fit[:itera+1]
-    obj = obj[:itera+1]
-    lambdas = lambdas[:,:itera+1]
+            if rel <= tol:
+                # Trim variables
+                fit = fit[:itera+1]
+                obj = obj[:itera+1]
+                lambdas = lambdas[:,:itera+1]
+                t.close()
+                break            
 
     # Add constant to optain true minus log posterior value
     obj = obj + (K*cst*(1.-np.log(cst)));
 
     # Display final values
-    logger.info('iter = %4i | obj = %+5.2E | rel = %4.2E (target is %4.2E)'%(itera,obj[itera],rel,tol))
     if itera == max_iter:
         logger.info('Maximum number of iterations reached (n_iter_max = %d)' % max_iter)
 
@@ -279,78 +275,80 @@ def l2_ardnmf(V, beta, tol, max_iter, W, H, a, b, verbose, random_state):
     fit[itera] = betadiv(V,V_ap,beta)
     obj[itera] = fit[itera] + cst * np.sum(np.log(scale_W+scale_H+b))
 
-    logger.setLevel(verbose)
-    logger.info('iter = %4i | obj = %+5.2E | rel = %4.2E (target is %4.2E) \n',itera, obj[itera], rel, tol)
-    while rel > tol and itera < max_iter:
-        itera = itera + 1
+    with trange(max_iter, desc='ARDNMF run (L2; half-normal prior)') as t:
+        for itera in t:
+            ## Update H ##
+            R = H * np.tile(inv_lambda[:, None], (1,N))
 
-        ## Update H ##
-        R = H * np.tile(inv_lambda[:, None], (1,N))
+            if beta > 2:
+                P = W.T.dot(V*V_ap ** (beta-2.))
+                Q = W.T.dot(V_ap ** (beta-1.)) + R
+                ex = 1./(beta-1.)
+            elif beta == 2:
+                P = W.T.dot(V)
+                Q = (W.T.dot(W)).dot(H) + R + np.tile(EPS*np.sum(W,0).T, (1,N))
+                ex = 1.
+            elif (beta < 2) and (beta != 1):
+                P = W.T.dot(V*V_ap ** (beta-2.))
+                Q = W.T.dot(V_ap ** (beta-1.)) + R
+                ex = 1./(3.-beta)
+            elif beta == 1:
+                P = W.T.dot(V/V_ap)
+                Q = np.tile(np.sum(W,0).T[:, None], (1,N)) + R
+                ex = 1./2
 
-        if beta > 2:
-            P = W.T.dot(V*V_ap ** (beta-2.))
-            Q = W.T.dot(V_ap ** (beta-1.)) + R
-            ex = 1./(beta-1.)
-        elif beta == 2:
-            P = W.T.dot(V)
-            Q = (W.T.dot(W)).dot(H) + R + np.tile(EPS*np.sum(W,0).T, (1,N))
-            ex = 1.
-        elif (beta < 2) and (beta != 1):
-            P = W.T.dot(V*V_ap ** (beta-2.))
-            Q = W.T.dot(V_ap ** (beta-1.)) + R
-            ex = 1./(3.-beta)
-        elif beta == 1:
-            P = W.T.dot(V/V_ap)
-            Q = np.tile(np.sum(W,0).T[:, None], (1,N)) + R
-            ex = 1./2
+            ind = H>0;
+            H[ind] = H[ind] * (P[ind]/Q[ind]) ** ex
+            scale_H = 0.5 * np.sum(H ** 2,1);
 
-        ind = H>0;
-        H[ind] = H[ind] * (P[ind]/Q[ind]) ** ex
-        scale_H = 0.5 * np.sum(H ** 2,1);
+            V_ap = W.dot(H) + EPS
 
-        V_ap = W.dot(H) + EPS
+            ## Update W ##
+            R = W * np.tile(inv_lambda.T, (F,1))
 
-        ## Update W ##
-        R = W * np.tile(inv_lambda.T, (F,1))
+            if beta > 2:
+                P = (V*V_ap ** (beta-2.)).dot(H.T)
+                Q = (V_ap ** (beta-1.)).dot(H.T) + R
+                ex = 1./(beta-1)
+            elif beta == 2:
+                P = V.dot(H.T)
+                Q = W.dot((H.dot(H.T))) + R + np.tile(EPS*np.sum(H,axis=1).T, (F,1))
+                ex = 1.
+            elif (beta < 2) and (beta != 1):
+                P = (V*V_ap ** (beta-2.)).dot(H.T)
+                Q = (V_ap ** (beta-1.)).dot(H.T) + R
+                ex = 1./(3.-beta)
+            elif beta == 1:
+                P = (V/V_ap).dot(H.T)
+                Q = np.tile(np.sum(H,axis=1).T, (F,1)) + R
+                ex = 1./2
 
-        if beta > 2:
-            P = (V*V_ap ** (beta-2.)).dot(H.T)
-            Q = (V_ap ** (beta-1.)).dot(H.T) + R
-            ex = 1./(beta-1)
-        elif beta == 2:
-            P = V.dot(H.T)
-            Q = W.dot((H.dot(H.T))) + R + np.tile(EPS*np.sum(H,axis=1).T, (F,1))
-            ex = 1.
-        elif (beta < 2) and (beta != 1):
-            P = (V*V_ap ** (beta-2.)).dot(H.T)
-            Q = (V_ap ** (beta-1.)).dot(H.T) + R
-            ex = 1./(3.-beta)
-        elif beta == 1:
-            P = (V/V_ap).dot(H.T)
-            Q = np.tile(np.sum(H,axis=1).T, (F,1)) + R
-            ex = 1./2
+            ind = W>0
+            W[ind] = W[ind] * (P[ind]/Q[ind]) ** ex
+            scale_W = 0.5 * np.sum(W**2, axis=0).T
+            
+            V_ap = W.dot(H) + EPS
+            
+            ## Update lambda ##
+            inv_lambda = cst/(scale_W+scale_H+b)
+            
+            ## Monitor ##
+            fit[itera] = betadiv(V, V_ap, beta)
+            obj[itera] = fit[itera] + cst*np.sum(np.log(scale_W+scale_H+b))
+            lambdas[:,itera] = 1./inv_lambda
+            
+            # Compute relative change of the relevance parameters
+            rel = np.max(np.abs((lambdas[:, itera]-lambdas[:, itera-1])/lambdas[:,itera]))
+            t.set_postfix(iter=itera, obj=obj[itera], rel=rel, tol=tol)
 
-        ind = W>0
-        W[ind] = W[ind] * (P[ind]/Q[ind]) ** ex
-        scale_W = 0.5 * np.sum(W**2, axis=0).T
-
-        V_ap = W.dot(H) + EPS
-
-        ## Update lambda ##
-        inv_lambda = cst/(scale_W+scale_H+b)
-
-        ## Monitor ##
-        fit[itera] = betadiv(V, V_ap, beta)
-        obj[itera] = fit[itera] + cst*np.sum(np.log(scale_W+scale_H+b))
-        lambdas[:,itera] = 1./inv_lambda
-
-        # Compute relative change of the relevance parameters
-        rel = np.max(np.abs((lambdas[:, itera]-lambdas[:, itera-1])/lambdas[:,itera]))
-
-        # Display objective value and relative change every 500 iterations
-        if itera % 500 == 0:
-            logger.info('iter = %4i | obj = %+5.2E | rel = %4.2E (target is %4.2E) \n',itera,obj[itera],rel,tol)
-
+            if rel <= tol:
+                # Trim variables
+                fit = fit[:itera+1]
+                obj = obj[:itera+1]
+                lambdas = lambdas[:,:itera+1]
+                t.close()
+                break            
+                
     # Trim variables
     fit = fit[:itera+1]
     obj = obj[:itera+1]
@@ -360,7 +358,6 @@ def l2_ardnmf(V, beta, tol, max_iter, W, H, a, b, verbose, random_state):
     obj = obj + (K*cst*(1.-np.log(cst)))
 
     # Display final values
-    logger.info('iter = %4i | obj = %+5.2E | rel = %4.2E (target is %4.2E) \n',itera, obj[itera], rel, tol)
     if itera == max_iter:
         logger.info('Maximum number of iterations reached (n_iter_max = %d) \n',n_iter_max)
 

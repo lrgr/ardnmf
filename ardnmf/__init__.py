@@ -114,7 +114,7 @@ def _signature_association_probs(X, W, H):
     F, N = X.shape
     k_eff = W.shape[1]
     P = np.zeros((F, N, k_eff))
-    sig_norm = sum( W[:, k][:, None].dot(H[k][None, :]) for k in range(k_eff) )
+    sig_norm = sum( W[:, k][:, None].dot(H[k][None, :]) for k in range(k_eff) ) + EPS # add EPS in case category prob is 0
     for k in range(k_eff):
         P[:, :, k] = W[:, k][:, None].dot(H[k][None, :])/sig_norm
     return P
