@@ -67,9 +67,17 @@ def init_ardnmf(V, prior, K, init=None, random_state=None):
     """
     rng = check_random_state(random_state)
     F, N = V.shape
-    mean_V = V.sum() / (F*N) # Data sample mean per component
-    W_ini = (rng.rand(F,K) + 1)*(np.sqrt(mean_V/K))
-    H_ini = (rng.rand(K,N) + 1)*(np.sqrt(mean_V/K))
+    if prior == HN_PRIOR:
+        mean_V = V.sum() / (F*N) # Data sample mean per component
+        W_ini = (rng.rand(F,K) + 1)*(np.sqrt(mean_V/K))
+        H_ini = (rng.rand(K,N) + 1)*(np.sqrt(mean_V/K))
+    # Initialization based on Signature Analyzer code
+    elif prior == EXP_PRIOR:
+        max_V = V.max()
+        W_ini = (rng.rand(F,K))*(np.sqrt(max_V))
+        H_ini = (rng.rand(K,N))*(np.sqrt(max_V))
+    else:
+        raise NotImplementedError('Prior "%s" not implemented' % prior)
 
     return W_ini, H_ini
 
@@ -195,7 +203,7 @@ def l1_ardnmf(V, beta, tol, max_iter, W, H, a, b, verbose, random_state):
 
             # Compute relative change of the relevance parameters and display
             rel = np.max(np.abs((lambdas[:,itera]-lambdas[:,itera-1])/lambdas[:,itera]))
-            t.set_postfix(iter=itera, obj=obj[itera], rel=rel, tol=tol)
+            t.set_postfix(obj=obj[itera], rel=rel, tol=tol)
 
             if rel <= tol:
                 # Trim variables
@@ -203,7 +211,7 @@ def l1_ardnmf(V, beta, tol, max_iter, W, H, a, b, verbose, random_state):
                 obj = obj[:itera+1]
                 lambdas = lambdas[:,:itera+1]
                 t.close()
-                break            
+                break
 
     # Add constant to optain true minus log posterior value
     obj = obj + (K*cst*(1.-np.log(cst)));
@@ -339,7 +347,7 @@ def l2_ardnmf(V, beta, tol, max_iter, W, H, a, b, verbose, random_state):
             
             # Compute relative change of the relevance parameters
             rel = np.max(np.abs((lambdas[:, itera]-lambdas[:, itera-1])/lambdas[:,itera]))
-            t.set_postfix(iter=itera, obj=obj[itera], rel=rel, tol=tol)
+            t.set_postfix(obj=obj[itera], rel=rel, tol=tol)
 
             if rel <= tol:
                 # Trim variables
